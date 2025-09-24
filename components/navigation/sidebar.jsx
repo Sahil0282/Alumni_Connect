@@ -46,7 +46,6 @@ const navigationItems = {
     { name: "Q&A Forum", href: "/alumni/forum", icon: MessageSquare },
     { name: "Share Experience", href: "/alumni/experience", icon: Award },
     { name: "Events", href: "/alumni/events", icon: Calendar },
-    { name: "AI Assistant", href: "/alumni/chatbot", icon: Bot },
     { name: "Profile", href: "/alumni/profile", icon: Settings },
   ],
   admin: [
@@ -57,7 +56,6 @@ const navigationItems = {
     { name: "Fundraising", href: "/admin/fundraising", icon: HandCoins },
     { name: "Analytics", href: "/admin/analytics", icon: BarChart3 },
     { name: "Announcements", href: "/admin/announcements", icon: Bell },
-    { name: "AI Assistant", href: "/admin/chatbot", icon: Bot },
   ],
 }
 
