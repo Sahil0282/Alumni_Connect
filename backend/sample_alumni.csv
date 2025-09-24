@@ -1,0 +1,5 @@
+email,name,graduation_year,department,company,position,phone,linkedin
+john.doe@example.com,John Doe,2020,Computer Science,Google,Software Engineer,+1234567890,https://linkedin.com/in/johndoe
+jane.smith@example.com,Jane Smith,2019,Electrical Engineering,Microsoft,Senior Developer,+1234567891,https://linkedin.com/in/janesmith
+mike.johnson@example.com,Mike Johnson,2021,Mechanical Engineering,Tesla,Design Engineer,+1234567892,https://linkedin.com/in/mikejohnson
+sarah.wilson@example.com,Sarah Wilson,2018,Information Technology,Amazon,Cloud Architect,+1234567893,https://linkedin.com/in/sarahwilson

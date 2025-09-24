@@ -210,6 +210,181 @@ Time: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
         
         return self.send_email(recipient_email, subject, text_content, html_content)
     
+    def send_alumni_credentials_email(self, recipient_email: str, user_name: str, username: str, password: str, login_url: str = "https://alumni.vit.edu/login") -> bool:
+        """
+        Send alumni account credentials email
+        
+        Args:
+            recipient_email (str): Recipient email address
+            user_name (str): Name of the user
+            username (str): Login username
+            password (str): Login password
+            login_url (str): URL to login page
+        
+        Returns:
+            bool: True if email sent successfully, False otherwise
+        """
+        subject = "🔐 Your VIT Alumni Portal Account Credentials"
+        
+        # Plain text version
+        text_content = f"""
+Dear {user_name},
+
+Welcome to the VIT Alumni Portal! Your account has been successfully created.
+
+Your Login Credentials:
+• Username: {username}
+• Password: {password}
+• Login URL: {login_url}
+
+IMPORTANT SECURITY NOTICE:
+For your security, please change your password after your first login.
+
+Getting Started:
+1. Visit the login page: {login_url}
+2. Enter your username and password
+3. Complete your profile information
+4. Change your password in account settings
+
+If you have any questions or need assistance, please contact our support team.
+
+Best regards,
+VIT Alumni Relations Team
+Vellore Institute of Technology
+
+---
+This email contains sensitive information. Please keep it secure.
+Time: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
+        """
+        
+        # Professional HTML version
+        html_content = f"""
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Your VIT Alumni Portal Credentials</title>
+        </head>
+        <body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f4;">
+            <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+                
+                <!-- Header -->
+                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 30px; text-align: center;">
+                    <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: 300; letter-spacing: 1px;">
+                        🔐 VIT Alumni Portal
+                    </h1>
+                    <p style="color: #e8f4fd; margin: 10px 0 0 0; font-size: 16px; opacity: 0.9;">
+                        Your Account Credentials
+                    </p>
+                </div>
+                
+                <!-- Main Content -->
+                <div style="padding: 40px 30px;">
+                    
+                    <!-- Welcome Message -->
+                    <div style="text-align: center; margin-bottom: 30px;">
+                        <div style="font-size: 60px; margin-bottom: 20px;">🎓</div>
+                        <h2 style="color: #2c3e50; margin: 0; font-size: 24px; font-weight: 600;">
+                            Welcome, {user_name}!
+                        </h2>
+                        <p style="color: #7f8c8d; margin: 10px 0 0 0; font-size: 18px;">
+                            Your account has been successfully created
+                        </p>
+                    </div>
+                    
+                    <!-- Credentials Box -->
+                    <div style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); padding: 25px; border-radius: 10px; border: 2px solid #667eea; margin: 30px 0;">
+                        <h3 style="color: #2c3e50; margin: 0 0 20px 0; font-size: 20px; font-weight: 600; text-align: center;">
+                            🔑 Your Login Credentials
+                        </h3>
+                        <div style="background-color: #ffffff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                            <div style="margin-bottom: 15px;">
+                                <strong style="color: #495057; display: inline-block; width: 100px;">Username:</strong>
+                                <span style="color: #2c3e50; font-family: 'Courier New', monospace; background-color: #f8f9fa; padding: 4px 8px; border-radius: 4px;">{username}</span>
+                            </div>
+                            <div style="margin-bottom: 15px;">
+                                <strong style="color: #495057; display: inline-block; width: 100px;">Password:</strong>
+                                <span style="color: #2c3e50; font-family: 'Courier New', monospace; background-color: #f8f9fa; padding: 4px 8px; border-radius: 4px;">{password}</span>
+                            </div>
+                            <div style="margin-bottom: 0;">
+                                <strong style="color: #495057; display: inline-block; width: 100px;">Login URL:</strong>
+                                <a href="{login_url}" style="color: #667eea; text-decoration: none;">{login_url}</a>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Security Notice -->
+                    <div style="background-color: #fff3cd; border: 1px solid #ffeaa7; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                        <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                            <span style="font-size: 24px; margin-right: 10px;">⚠️</span>
+                            <h4 style="color: #856404; margin: 0; font-size: 16px; font-weight: 600;">
+                                Important Security Notice
+                            </h4>
+                        </div>
+                        <p style="color: #856404; margin: 0; font-size: 14px; line-height: 1.5;">
+                            For your security, please <strong>change your password</strong> after your first login. Keep your credentials secure and do not share them with anyone.
+                        </p>
+                    </div>
+                    
+                    <!-- Getting Started -->
+                    <div style="margin: 30px 0;">
+                        <h3 style="color: #2c3e50; margin: 0 0 20px 0; font-size: 20px; font-weight: 600;">
+                            🚀 Getting Started
+                        </h3>
+                        <div style="background-color: #ffffff; border: 1px solid #e9ecef; border-radius: 8px; overflow: hidden;">
+                            <div style="padding: 15px 20px; border-bottom: 1px solid #e9ecef;">
+                                <span style="color: #667eea; font-weight: 600;">1️⃣</span>
+                                <span style="color: #2c3e50; margin-left: 10px;">Visit the login page and enter your credentials</span>
+                            </div>
+                            <div style="padding: 15px 20px; border-bottom: 1px solid #e9ecef;">
+                                <span style="color: #667eea; font-weight: 600;">2️⃣</span>
+                                <span style="color: #2c3e50; margin-left: 10px;">Complete your profile information</span>
+                            </div>
+                            <div style="padding: 15px 20px; border-bottom: 1px solid #e9ecef;">
+                                <span style="color: #667eea; font-weight: 600;">3️⃣</span>
+                                <span style="color: #2c3e50; margin-left: 10px;">Change your password in account settings</span>
+                            </div>
+                            <div style="padding: 15px 20px;">
+                                <span style="color: #667eea; font-weight: 600;">4️⃣</span>
+                                <span style="color: #2c3e50; margin-left: 10px;">Start connecting with fellow alumni</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Login Button -->
+                    <div style="text-align: center; margin: 40px 0;">
+                        <a href="{login_url}" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #ffffff; text-decoration: none; padding: 15px 30px; border-radius: 25px; font-weight: 600; font-size: 16px; display: inline-block; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4); transition: all 0.3s ease;">
+                            🚀 Login to Your Account
+                        </a>
+                    </div>
+                    
+                    <!-- Support -->
+                    <div style="text-align: center; padding: 20px; background-color: #f8f9fa; border-radius: 8px; margin: 30px 0;">
+                        <p style="color: #6c757d; margin: 0; font-size: 14px;">
+                            Need help? Contact our support team at 
+                            <a href="mailto:alumni@vit.edu" style="color: #667eea; text-decoration: none;">alumni@vit.edu</a>
+                        </p>
+                    </div>
+                    
+                </div>
+                
+                <!-- Footer -->
+                <div style="background-color: #2c3e50; padding: 20px 30px; text-align: center;">
+                    <p style="color: #bdc3c7; margin: 0; font-size: 12px;">
+                        This email contains sensitive information. Please keep it secure.<br>
+                        © 2024 Vellore Institute of Technology. All rights reserved.<br>
+                        Time: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
+                    </p>
+                </div>
+                
+            </div>
+        </body>
+        </html>
+        """
+        
+        return self.send_email(recipient_email, subject, text_content, html_content)
+    
     def parse_csv_content(self, csv_content: str) -> List[Dict[str, str]]:
         """
         Parse CSV content and extract recipients

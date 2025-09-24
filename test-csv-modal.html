@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test CSV Upload Modal</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .test-section {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .api-test {
+            background: #e8f4f8;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 10px 0;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        input[type="file"] {
+            margin: 10px 0;
+        }
+        .result {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 CSV Upload Modal Integration Test</h1>
+    
+    <div class="test-section">
+        <h2>📋 Test Instructions</h2>
+        <ol>
+            <li>Make sure your FastAPI server is running on <code>http://localhost:8000</code></li>
+            <li>Create a CSV file with alumni data (or download the sample template)</li>
+            <li>Test the API endpoint directly below</li>
+            <li>Then test the modal integration in your React app</li>
+        </ol>
+    </div>
+
+    <div class="test-section">
+        <h2>🔗 API Endpoint Test</h2>
+        <div class="api-test">
+            <h3>Direct API Test</h3>
+            <p><strong>Endpoint:</strong> POST http://localhost:8000/api/admin/alumni/upload-csv</p>
+            <input type="file" id="csvFile" accept=".csv" />
+            <button onclick="testAPI()">Test API Upload</button>
+            <div id="apiResult"></div>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>📄 Sample CSV Data</h2>
+        <p>Create a CSV file with this content:</p>
+        <pre style="background: white; padding: 10px; border-radius: 4px; overflow-x: auto;">
+email,name,graduation_year,department,company,position,phone,linkedin
+john.doe@example.com,John Doe,2020,Computer Science,Google,Software Engineer,+1234567890,https://linkedin.com/in/johndoe
+jane.smith@example.com,Jane Smith,2019,Electrical Engineering,Microsoft,Senior Developer,+1234567891,https://linkedin.com/in/janesmith
+mike.johnson@example.com,Mike Johnson,2021,Mechanical Engineering,Tesla,Design Engineer,+1234567892,https://linkedin.com/in/mikejohnson
+        </pre>
+        <button onclick="downloadSample()">Download Sample CSV</button>
+    </div>
+
+    <div class="test-section">
+        <h2>✅ Expected Results</h2>
+        <ul>
+            <li><strong>Successful Response:</strong> JSON with total_records, successful_imports, failed_imports, emails_sent, emails_failed</li>
+            <li><strong>MongoDB Records:</strong> Alumni documents with hashed passwords</li>
+            <li><strong>Automatic Emails:</strong> Credential emails sent to each alumni's email address</li>
+            <li><strong>Email Content:</strong> Professional email with username, password, and login instructions</li>
+            <li><strong>Duplicate Handling:</strong> Failed records for duplicate emails</li>
+            <li><strong>Email Error Tracking:</strong> Separate tracking for email delivery failures</li>
+            <li><strong>Modal Integration:</strong> Progress bar, results display with email statistics, error handling</li>
+        </ul>
+    </div>
+
+    <div class="test-section">
+        <h2>📧 Email Integration Features</h2>
+        <ul>
+            <li><strong>Auto-Send:</strong> Credentials automatically sent after successful account creation</li>
+            <li><strong>Professional Template:</strong> Branded email with VIT Alumni Portal styling</li>
+            <li><strong>Security Notice:</strong> Instructions to change password on first login</li>
+            <li><strong>Login Instructions:</strong> Step-by-step guide for new users</li>
+            <li><strong>Error Handling:</strong> Graceful handling of email delivery failures</li>
+            <li><strong>Detailed Reporting:</strong> Email success/failure statistics in API response</li>
+        </ul>
+    </div>
+
+    <script>
+        async function testAPI() {
+            const fileInput = document.getElementById('csvFile');
+            const resultDiv = document.getElementById('apiResult');
+            
+            if (!fileInput.files[0]) {
+                resultDiv.innerHTML = '<div class="result error">Please select a CSV file first!</div>';
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+
+            try {
+                resultDiv.innerHTML = '<div class="result">Uploading...</div>';
+                
+                const response = await fetch('http://localhost:8000/api/admin/alumni/upload-csv', {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                const result = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `
+                        <div class="result">
+                            <h4>✅ Success!</h4>
+                            <p><strong>Total Records:</strong> ${result.total_records}</p>
+                            <p><strong>Successful Imports:</strong> ${result.successful_imports}</p>
+                            <p><strong>Failed Imports:</strong> ${result.failed_imports}</p>
+                            <p><strong>Emails Sent:</strong> ${result.emails_sent || 0}</p>
+                            <p><strong>Email Failures:</strong> ${result.emails_failed || 0}</p>
+                            <p><strong>Message:</strong> ${result.message}</p>
+                            ${result.failed_records.length > 0 ? 
+                                '<p><strong>Failed Records:</strong> ' + JSON.stringify(result.failed_records, null, 2) + '</p>' 
+                                : ''
+                            }
+                            ${result.email_errors && result.email_errors.length > 0 ? 
+                                '<p><strong>Email Errors:</strong> ' + JSON.stringify(result.email_errors, null, 2) + '</p>' 
+                                : ''
+                            }
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `<div class="result error"><strong>Error:</strong> ${result.detail || 'Unknown error'}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="result error"><strong>Network Error:</strong> ${error.message}<br>Make sure the FastAPI server is running on http://localhost:8000</div>`;
+            }
+        }
+
+        function downloadSample() {
+            const csvContent = "email,name,graduation_year,department,company,position,phone,linkedin\n" +
+                              "john.doe@example.com,John Doe,2020,Computer Science,Google,Software Engineer,+1234567890,https://linkedin.com/in/johndoe\n" +
+                              "jane.smith@example.com,Jane Smith,2019,Electrical Engineering,Microsoft,Senior Developer,+1234567891,https://linkedin.com/in/janesmith\n" +
+                              "mike.johnson@example.com,Mike Johnson,2021,Mechanical Engineering,Tesla,Design Engineer,+1234567892,https://linkedin.com/in/mikejohnson";
+            
+            const blob = new Blob([csvContent], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'test_alumni.csv';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+        }
+    </script>
+</body>
+</html>
