@@ -91,7 +91,7 @@ export default function Chatbot() {
         }
     };
 
-    const handleSendMessage = (e) => {
+    const handleSendMessage = async (e) => {
         e.preventDefault();
         if (inputValue.trim() === '' && !attachment) return;
 
@@ -102,20 +102,52 @@ export default function Chatbot() {
             attachment: attachment
         };
         setMessages(prev => [...prev, newUserMessage]);
+        const currentMessage = inputValue;
         setInputValue('');
         setAttachment(null);
         setIsTyping(true);
 
-        // Simulate bot response
-        setTimeout(() => {
-            const botResponse = {
+        try {
+            // Call the FastAPI chatbot service
+            const response = await fetch('http://localhost:8000/api/chat/complete', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    message: currentMessage,
+                    conversation_id: `conv_${Date.now()}`, // Simple conversation ID
+                    context_type: 'general', // Can be made dynamic based on page/user selection
+                    user_id: 'user_demo' // Can be replaced with actual user ID
+                })
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                const botResponse = {
+                    id: messages.length + 2,
+                    text: data.message,
+                    sender: 'bot',
+                    metadata: {
+                        confidence: data.confidence_score,
+                        suggestions: data.suggested_actions
+                    }
+                };
+                setIsTyping(false);
+                setMessages(prev => [...prev, botResponse]);
+            } else {
+                throw new Error('Failed to get response from chatbot service');
+            }
+        } catch (error) {
+            console.error('Error calling chatbot API:', error);
+            const errorResponse = {
                 id: messages.length + 2,
-                text: "Thanks for your message! I'm searching for relevant information on AlumniConnect. Please give me a moment.",
+                text: "I'm sorry, I'm having trouble connecting to the AI service right now. Please try again in a moment. In the meantime, feel free to browse our alumni directory or check out upcoming events!",
                 sender: 'bot',
             };
             setIsTyping(false);
-            setMessages(prev => [...prev, botResponse]);
-        }, 1500);
+            setMessages(prev => [...prev, errorResponse]);
+        }
     };
 
     return (
