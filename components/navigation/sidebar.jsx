@@ -24,6 +24,7 @@ import {
   Bot,
   MessageCircle,
   FileText,
+  HandCoins,
 } from "lucide-react"
 
 const navigationItems = {
@@ -53,6 +54,7 @@ const navigationItems = {
     { name: "Alumni Directory", href: "/admin/directory", icon: Users },
     { name: "Verification", href: "/admin/verification", icon: UserCheck },
     { name: "Event Management", href: "/admin/events", icon: Calendar },
+    { name: "Fundraising", href: "/admin/fundraising", icon: HandCoins },
     { name: "Analytics", href: "/admin/analytics", icon: BarChart3 },
     { name: "Announcements", href: "/admin/announcements", icon: Bell },
     { name: "AI Assistant", href: "/admin/chatbot", icon: Bot },
