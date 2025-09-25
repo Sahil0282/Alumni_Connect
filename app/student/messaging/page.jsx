@@ -22,13 +22,63 @@ import {
   Check,
   CheckCheck
 } from "lucide-react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { getToken } from "@/lib/auth"
+
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000"
 
 export default function StudentMessaging() {
-  const [selectedChat, setSelectedChat] = useState(1)
+  const [selectedChat, setSelectedChat] = useState(null)
   const [newMessage, setNewMessage] = useState("")
+  const [conversations, setConversations] = useState([])
+  const [messages, setMessages] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState("")
 
-  const conversations = [
+  useEffect(() => {
+    const loadConversations = async () => {
+      setLoading(true)
+      setError("")
+      try {
+        const token = getToken()
+        const res = await fetch(`${API_BASE}/api/connections/conversations`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data?.detail || "Failed to load conversations")
+        setConversations(data || [])
+        if (data && data.length > 0) {
+          setSelectedChat(data[0].id)
+        }
+      } catch (e) {
+        setError(e?.message || "Failed to load conversations")
+      } finally {
+        setLoading(false)
+      }
+    }
+    loadConversations()
+  }, [])
+
+  useEffect(() => {
+    if (selectedChat) {
+      const loadMessages = async () => {
+        try {
+          const token = getToken()
+          const res = await fetch(`${API_BASE}/api/connections/messages/${selectedChat}`, {
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+          })
+          const data = await res.json()
+          if (!res.ok) throw new Error(data?.detail || "Failed to load messages")
+          setMessages(data || [])
+        } catch (e) {
+          setError(e?.message || "Failed to load messages")
+        }
+      }
+      loadMessages()
+    }
+  }, [selectedChat])
+
+  const hardcodedConversations = [
     {
       id: 1,
       name: "Sarah Chen",
@@ -132,11 +182,32 @@ export default function StudentMessaging() {
 
   const selectedConversation = conversations.find(conv => conv.id === selectedChat)
 
-  const handleSendMessage = () => {
-    if (newMessage.trim()) {
-      // In a real app, this would send the message to the backend
-      console.log("Sending message:", newMessage)
-      setNewMessage("")
+  const handleSendMessage = async () => {
+    if (newMessage.trim() && selectedChat) {
+      try {
+        const token = getToken()
+        const res = await fetch(`${API_BASE}/api/connections/messages`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({
+            receiver_id: selectedChat,
+            content: newMessage,
+            message_type: "text"
+          }),
+        })
+        
+        const data = await res.json()
+        if (!res.ok) throw new Error(data?.detail || "Failed to send message")
+        
+        // Add message to local state
+        setMessages(prev => [...prev, data])
+        setNewMessage("")
+      } catch (e) {
+        setError(e?.message || "Failed to send message")
+      }
     }
   }
 
@@ -171,7 +242,27 @@ export default function StudentMessaging() {
           
           <ScrollArea className="flex-1">
             <div className="p-2 space-y-1">
-              {conversations.map((conversation) => (
+              {loading && (
+                <div className="p-4 text-center text-muted-foreground">
+                  Loading conversations...
+                </div>
+              )}
+              
+              {error && (
+                <div className="p-4 text-center text-red-600">
+                  {error}
+                </div>
+              )}
+              
+              {!loading && !error && conversations.length === 0 && (
+                <div className="p-4 text-center text-muted-foreground">
+                  <MessageSquare className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                  <p>No conversations yet</p>
+                  <p className="text-sm">Connect with alumni to start messaging</p>
+                </div>
+              )}
+              
+              {!loading && !error && conversations.map((conversation) => (
                 <div
                   key={conversation.id}
                   onClick={() => setSelectedChat(conversation.id)}
@@ -184,29 +275,31 @@ export default function StudentMessaging() {
                   <div className="flex items-start gap-3">
                     <div className="relative">
                       <Avatar className="w-12 h-12">
-                        <AvatarImage src={conversation.avatar} alt={conversation.name} />
                         <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white">
-                          {conversation.name.split(" ").map(n => n[0]).join("")}
+                          {conversation.last_message?.sender_name?.split(" ").map(n => n[0]).join("") || "U"}
                         </AvatarFallback>
                       </Avatar>
-                      {conversation.online && (
-                        <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white"></div>
-                      )}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between">
-                        <h3 className="font-medium text-sm truncate">{conversation.name}</h3>
+                        <h3 className="font-medium text-sm truncate">
+                          {conversation.last_message?.sender_name || "Unknown"}
+                        </h3>
                         <div className="flex items-center gap-1">
-                          <span className="text-xs text-gray-500">{conversation.time}</span>
-                          {conversation.unread > 0 && (
+                          <span className="text-xs text-gray-500">
+                            {conversation.last_message ? new Date(conversation.last_message.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : ""}
+                          </span>
+                          {conversation.unread_count > 0 && (
                             <Badge variant="destructive" className="h-5 w-5 p-0 flex items-center justify-center text-xs">
-                              {conversation.unread}
+                              {conversation.unread_count}
                             </Badge>
                           )}
                         </div>
                       </div>
-                      <p className="text-xs text-gray-600 truncate mt-1">{conversation.role}</p>
-                      <p className="text-sm text-gray-700 truncate mt-1">{conversation.lastMessage}</p>
+                      <p className="text-xs text-gray-600 truncate mt-1">Alumni</p>
+                      <p className="text-sm text-gray-700 truncate mt-1">
+                        {conversation.last_message?.content || "No messages yet"}
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -225,18 +318,14 @@ export default function StudentMessaging() {
                   <div className="flex items-center gap-3">
                     <div className="relative">
                       <Avatar className="w-10 h-10">
-                        <AvatarImage src={selectedConversation.avatar} alt={selectedConversation.name} />
                         <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white">
-                          {selectedConversation.name.split(" ").map(n => n[0]).join("")}
+                          {selectedConversation?.last_message?.sender_name?.split(" ").map(n => n[0]).join("") || "U"}
                         </AvatarFallback>
                       </Avatar>
-                      {selectedConversation.online && (
-                        <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
-                      )}
                     </div>
                     <div>
-                      <h3 className="font-semibold">{selectedConversation.name}</h3>
-                      <p className="text-sm text-gray-600">{selectedConversation.role}</p>
+                      <h3 className="font-semibold">{selectedConversation?.last_message?.sender_name || "Unknown"}</h3>
+                      <p className="text-sm text-gray-600">Alumni</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
@@ -256,22 +345,24 @@ export default function StudentMessaging() {
               {/* Messages */}
               <ScrollArea className="flex-1 p-4">
                 <div className="space-y-4">
-                  {selectedConversation.messages.map((message) => (
+                  {messages.map((message) => (
                     <div
                       key={message.id}
-                      className={`flex ${message.sender === "student" ? "justify-end" : "justify-start"}`}
+                      className={`flex ${message.sender_id === selectedChat ? "justify-start" : "justify-end"}`}
                     >
                       <div
                         className={`max-w-[70%] rounded-lg px-4 py-2 ${
-                          message.sender === "student"
-                            ? "bg-blue-500 text-white"
-                            : "bg-gray-100 text-gray-900"
+                          message.sender_id === selectedChat
+                            ? "bg-gray-100 text-gray-900"
+                            : "bg-blue-500 text-white"
                         }`}
                       >
                         <p className="text-sm">{message.content}</p>
                         <div className="flex items-center justify-end gap-1 mt-1">
-                          <span className="text-xs opacity-70">{message.time}</span>
-                          {message.sender === "student" && getMessageStatusIcon(message.status)}
+                          <span className="text-xs opacity-70">
+                            {new Date(message.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                          </span>
+                          {message.sender_id !== selectedChat && getMessageStatusIcon(message.status)}
                         </div>
                       </div>
                     </div>

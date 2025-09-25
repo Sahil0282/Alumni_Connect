@@ -1,7 +1,10 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { DashboardLayout } from "@/components/layout/dashboard-layout"
+import { getToken } from "@/lib/auth"
+
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -29,8 +32,50 @@ export default function EventsPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [filterCategory, setFilterCategory] = useState("all")
   const [filterLocation, setFilterLocation] = useState("all")
+  const [events, setEvents] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState("")
+  const [userRegistrations, setUserRegistrations] = useState([])
 
-  const events = [
+  useEffect(() => {
+    const loadEvents = async () => {
+      setLoading(true)
+      setError("")
+      try {
+        const token = getToken()
+        const res = await fetch(`${API_BASE}/api/events/`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data?.detail || "Failed to load events")
+        setEvents(data.events || [])
+      } catch (e) {
+        setError(e?.message || "Failed to load events")
+      } finally {
+        setLoading(false)
+      }
+    }
+    
+    const loadUserRegistrations = async () => {
+      try {
+        const token = getToken()
+        const res = await fetch(`${API_BASE}/api/events/user/registrations`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        })
+        const data = await res.json()
+        if (res.ok) {
+          setUserRegistrations(data || [])
+        }
+      } catch (e) {
+        // Silent fail for registrations
+      }
+    }
+    
+    loadEvents()
+    loadUserRegistrations()
+  }, [])
+
+  const hardcodedEvents = [
     {
       id: 1,
       title: "Tech Talk: AI in Healthcare",
@@ -165,6 +210,64 @@ export default function EventsPage() {
     { value: "remote", label: "Remote" },
   ]
 
+  const handleRegister = async (eventId: string) => {
+    try {
+      const token = getToken()
+      const res = await fetch(`${API_BASE}/api/events/${eventId}/register`, {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data?.detail || "Failed to register")
+      
+      // Reload events and registrations
+      const eventsRes = await fetch(`${API_BASE}/api/events/`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      })
+      const eventsData = await eventsRes.json()
+      if (eventsRes.ok) setEvents(eventsData.events || [])
+      
+      const regRes = await fetch(`${API_BASE}/api/events/user/registrations`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      })
+      const regData = await regRes.json()
+      if (regRes.ok) setUserRegistrations(regData || [])
+    } catch (e) {
+      alert(e?.message || "Failed to register")
+    }
+  }
+
+  const handleUnregister = async (eventId: string) => {
+    try {
+      const token = getToken()
+      const res = await fetch(`${API_BASE}/api/events/${eventId}/register`, {
+        method: "DELETE",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data?.detail || "Failed to unregister")
+      
+      // Reload events and registrations
+      const eventsRes = await fetch(`${API_BASE}/api/events/`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      })
+      const eventsData = await eventsRes.json()
+      if (eventsRes.ok) setEvents(eventsData.events || [])
+      
+      const regRes = await fetch(`${API_BASE}/api/events/user/registrations`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      })
+      const regData = await regRes.json()
+      if (regRes.ok) setUserRegistrations(regData || [])
+    } catch (e) {
+      alert(e?.message || "Failed to unregister")
+    }
+  }
+
+  const isRegistered = (eventId: string) => {
+    return userRegistrations.some(reg => reg.id === eventId)
+  }
+
   const getCategoryBadge = (category: string) => {
     const categoryMap = {
       "tech-talk": { label: "Tech Talk", color: "bg-blue-100 text-blue-800 hover:bg-blue-100" },
@@ -172,6 +275,8 @@ export default function EventsPage() {
       networking: { label: "Networking", color: "bg-purple-100 text-purple-800 hover:bg-purple-100" },
       workshop: { label: "Workshop", color: "bg-orange-100 text-orange-800 hover:bg-orange-100" },
       competition: { label: "Competition", color: "bg-red-100 text-red-800 hover:bg-red-100" },
+      conference: { label: "Conference", color: "bg-indigo-100 text-indigo-800 hover:bg-indigo-100" },
+      social: { label: "Social", color: "bg-pink-100 text-pink-800 hover:bg-pink-100" },
     }
     const cat = categoryMap[category as keyof typeof categoryMap]
     return <Badge className={cat?.color || ""}>{cat?.label || category}</Badge>
@@ -181,8 +286,8 @@ export default function EventsPage() {
     const matchesSearch =
       event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       event.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      event.organizer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      event.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
+      event.organizer_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (event.tags || []).some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
     const matchesCategory = filterCategory === "all" || event.category === filterCategory
     const matchesLocation =
       filterLocation === "all" ||
@@ -194,6 +299,7 @@ export default function EventsPage() {
 
   const featuredEvents = filteredEvents.filter((event) => event.featured)
   const upcomingEvents = filteredEvents.filter((event) => event.status === "upcoming")
+  const myEvents = userRegistrations.filter((event) => event.status === "upcoming" || event.status === "ongoing")
 
   return (
     <DashboardLayout userRole="student" title="Events">
@@ -209,13 +315,36 @@ export default function EventsPage() {
                 </CardTitle>
                 <CardDescription>Discover networking events, workshops, and career opportunities</CardDescription>
               </div>
-              <Button>
-                <Plus className="w-4 h-4 mr-2" />
-                Create Event
-              </Button>
             </div>
           </CardHeader>
         </Card>
+
+        {/* Loading and Error States */}
+        {loading && (
+          <Card>
+            <CardContent className="p-12 text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+              <p>Loading events...</p>
+            </CardContent>
+          </Card>
+        )}
+
+        {error && (
+          <Card>
+            <CardContent className="p-6">
+              <div className="text-red-600 text-center">
+                <p>Error: {error}</p>
+                <Button 
+                  onClick={() => window.location.reload()} 
+                  variant="outline" 
+                  className="mt-2"
+                >
+                  Retry
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Search and Filters */}
         <Card>
@@ -318,7 +447,7 @@ export default function EventsPage() {
                             <div className="flex items-center gap-2 text-sm">
                               <Users className="w-4 h-4 text-muted-foreground" />
                               <span>
-                                {event.attendees}/{event.maxAttendees} registered
+                                {event.current_attendees}/{event.max_attendees} registered
                               </span>
                               <Badge variant="outline" className="ml-auto">
                                 {event.price}
@@ -329,20 +458,16 @@ export default function EventsPage() {
                           <div className="flex items-center justify-between pt-4 border-t">
                             <div className="flex items-center gap-2">
                               <Avatar className="w-6 h-6">
-                                <AvatarImage
-                                  src={event.organizer.avatar || "/placeholder.svg"}
-                                  alt={event.organizer.name}
-                                />
                                 <AvatarFallback className="text-xs">
-                                  {event.organizer.name
+                                  {event.organizer_name
                                     .split(" ")
                                     .map((n) => n[0])
                                     .join("")}
                                 </AvatarFallback>
                               </Avatar>
                               <div className="text-xs">
-                                <p className="font-medium">{event.organizer.name}</p>
-                                <p className="text-muted-foreground">{event.organizer.company}</p>
+                                <p className="font-medium">{event.organizer_name}</p>
+                                <p className="text-muted-foreground">{event.organizer_company || "Event Organizer"}</p>
                               </div>
                             </div>
                             <div className="flex gap-2">
@@ -350,7 +475,23 @@ export default function EventsPage() {
                                 <ExternalLink className="w-4 h-4 mr-1" />
                                 Details
                               </Button>
-                              <Button size="sm">Register</Button>
+                              {isRegistered(event.id) ? (
+                                <Button 
+                                  size="sm" 
+                                  variant="destructive"
+                                  onClick={() => handleUnregister(event.id)}
+                                >
+                                  Unregister
+                                </Button>
+                              ) : (
+                                <Button 
+                                  size="sm"
+                                  onClick={() => handleRegister(event.id)}
+                                  disabled={event.current_attendees >= event.max_attendees}
+                                >
+                                  {event.current_attendees >= event.max_attendees ? "Full" : "Register"}
+                                </Button>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -391,36 +532,48 @@ export default function EventsPage() {
                             <MapPin className="w-4 h-4 text-muted-foreground" />
                             <span className="line-clamp-1">{event.location}</span>
                           </div>
-                          <div className="flex items-center justify-between text-sm">
-                            <div className="flex items-center gap-2">
-                              <Users className="w-4 h-4 text-muted-foreground" />
-                              <span>
-                                {event.attendees}/{event.maxAttendees}
-                              </span>
-                            </div>
-                            <Badge variant="outline">{event.price}</Badge>
+                        <div className="flex items-center justify-between text-sm">
+                          <div className="flex items-center gap-2">
+                            <Users className="w-4 h-4 text-muted-foreground" />
+                            <span>
+                              {event.current_attendees}/{event.max_attendees}
+                            </span>
                           </div>
+                          <Badge variant="outline">{event.price}</Badge>
+                        </div>
                         </div>
 
                         <div className="flex items-center justify-between pt-4 border-t">
                           <div className="flex items-center gap-2">
                             <Avatar className="w-6 h-6">
-                              <AvatarImage
-                                src={event.organizer.avatar || "/placeholder.svg"}
-                                alt={event.organizer.name}
-                              />
                               <AvatarFallback className="text-xs">
-                                {event.organizer.name
+                                {event.organizer_name
                                   .split(" ")
                                   .map((n) => n[0])
                                   .join("")}
                               </AvatarFallback>
                             </Avatar>
                             <div className="text-xs">
-                              <p className="font-medium">{event.organizer.name}</p>
+                              <p className="font-medium">{event.organizer_name}</p>
                             </div>
                           </div>
-                          <Button size="sm">Register</Button>
+                          {isRegistered(event.id) ? (
+                            <Button 
+                              size="sm" 
+                              variant="destructive"
+                              onClick={() => handleUnregister(event.id)}
+                            >
+                              Unregister
+                            </Button>
+                          ) : (
+                            <Button 
+                              size="sm"
+                              onClick={() => handleRegister(event.id)}
+                              disabled={event.current_attendees >= event.max_attendees}
+                            >
+                              {event.current_attendees >= event.max_attendees ? "Full" : "Register"}
+                            </Button>
+                          )}
                         </div>
                       </div>
                     </CardContent>
@@ -538,16 +691,60 @@ export default function EventsPage() {
           </TabsContent>
 
           <TabsContent value="my-events" className="space-y-4">
-            <Card>
-              <CardContent className="p-12 text-center">
-                <Calendar className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="font-semibold text-lg mb-2">No Registered Events</h3>
-                <p className="text-muted-foreground mb-4">
-                  You haven't registered for any events yet. Browse available events and register to get started.
-                </p>
-                <Button>Browse Events</Button>
-              </CardContent>
-            </Card>
+            {myEvents.length === 0 ? (
+              <Card>
+                <CardContent className="p-12 text-center">
+                  <Calendar className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="font-semibold text-lg mb-2">No Registered Events</h3>
+                  <p className="text-muted-foreground mb-4">
+                    You haven't registered for any events yet. Browse available events and register to get started.
+                  </p>
+                  <Button onClick={() => setFilterCategory("all")}>Browse Events</Button>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {myEvents.map((event) => (
+                  <Card key={event.id} className="hover:shadow-md transition-shadow">
+                    <CardContent className="p-6">
+                      <div className="space-y-4">
+                        <div>
+                          {getCategoryBadge(event.category)}
+                          <h3 className="font-semibold text-base mt-2 mb-1">{event.title}</h3>
+                          <p className="text-sm text-muted-foreground line-clamp-2">{event.description}</p>
+                        </div>
+
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2 text-sm">
+                            <Calendar className="w-4 h-4 text-muted-foreground" />
+                            <span>{new Date(event.date).toLocaleDateString()}</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-sm">
+                            <Clock className="w-4 h-4 text-muted-foreground" />
+                            <span>{event.time}</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-sm">
+                            <MapPin className="w-4 h-4 text-muted-foreground" />
+                            <span className="line-clamp-1">{event.location}</span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between pt-4 border-t">
+                          <Badge variant="outline">{event.price}</Badge>
+                          <Button 
+                            size="sm" 
+                            variant="destructive"
+                            onClick={() => handleUnregister(event.id)}
+                          >
+                            Unregister
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
           </TabsContent>
         </Tabs>
       </div>

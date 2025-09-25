@@ -5,6 +5,8 @@ from app.api.admin.email_routes import router as admin_email_router
 from app.api.admin.alumni_routes import router as admin_alumni_router
 from app.api.student.chatbot_routes import router as student_chatbot_router
 from app.api.auth.auth_routes import router as auth_router
+from app.api.connection_routes import router as connection_router
+from app.api.event_routes import router as event_router
 
 # Create FastAPI app
 app = FastAPI(
@@ -27,6 +29,8 @@ app.include_router(auth_router)
 app.include_router(admin_email_router)
 app.include_router(admin_alumni_router)
 app.include_router(student_chatbot_router)
+app.include_router(connection_router)
+app.include_router(event_router)
 
 @app.get("/")
 async def root():

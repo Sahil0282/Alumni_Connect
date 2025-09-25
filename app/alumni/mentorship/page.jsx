@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -17,112 +17,98 @@ import {
   Star,
   Award,
 } from "lucide-react";
+import { getToken } from "@/lib/auth";
+
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
 
 export default function MentorshipPage() {
   const [selectedRequest, setSelectedRequest] = useState(null);
+  const [pendingRequests, setPendingRequests] = useState([]);
+  const [activeMentorships, setActiveMentorships] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [completedMentorships, setCompletedMentorships] = useState([]);
 
-  const pendingRequests = [
-    {
-      id: 1,
-      student: "Alex Kumar",
-      topic: "Software Engineering Career Path",
-      message:
-        "Hi Sarah! I'm a final year CS student interested in learning about your journey at Google. I'd love to understand how you prepared for technical interviews, what the day-to-day work is like, and any advice you have for someone starting their career in software engineering. I'm particularly interested in machine learning applications.",
-      timeAgo: "2 hours ago",
-      avatar: "/student-alex.png",
-      year: "2024",
-      skills: ["JavaScript", "Python", "React", "Machine Learning"],
-      gpa: "3.8",
-      projects: 5,
-    },
-    {
-      id: 2,
-      student: "Priya Sharma",
-      topic: "Product Management Transition",
-      message:
-        "Hello! I'm currently working as a software engineer but I'm very interested in transitioning to product management. I've heard about your successful transition and would love to learn about your experience. What skills should I develop? How did you make the switch? Any courses or resources you'd recommend?",
-      timeAgo: "5 hours ago",
-      avatar: "/student-priya.png",
-      year: "2025",
-      skills: ["React", "Data Analysis", "SQL", "Python"],
-      gpa: "3.9",
-      projects: 8,
-    },
-    {
-      id: 3,
-      student: "David Park",
-      topic: "Machine Learning Projects",
-      message:
-        "Hi! I'm working on building a strong portfolio for ML engineer positions. Could you guide me on what types of projects would be most impressive to recruiters? I'm also curious about the technical interview process for ML roles at top tech companies.",
-      timeAgo: "1 day ago",
-      avatar: "/student-david.png",
-      year: "2024",
-      skills: ["Python", "TensorFlow", "PyTorch", "Statistics"],
-      gpa: "3.7",
-      projects: 6,
-    },
-  ];
+  useEffect(() => {
+    const loadData = async () => {
+      setLoading(true);
+      setError("");
+      try {
+        const token = getToken();
+        
+        // Load pending requests
+        const requestsRes = await fetch(`${API_BASE}/api/connections/requests/pending`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        const requestsData = await requestsRes.json();
+        if (!requestsRes.ok) throw new Error(requestsData?.detail || "Failed to load requests");
+        
+        setPendingRequests(requestsData || []);
+        
+        // Load active mentorships (accepted connections)
+        const mentorshipsRes = await fetch(`${API_BASE}/api/connections/stats`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        const mentorshipsData = await mentorshipsRes.json();
+        if (!mentorshipsRes.ok) throw new Error(mentorshipsData?.detail || "Failed to load mentorships");
+        
+        // For now, we'll use the stats. In a real app, you'd have a separate endpoint for active mentorships
+        setActiveMentorships([]);
+        
+      } catch (e) {
+        setError(e?.message || "Failed to load data");
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    loadData();
+  }, []);
 
-  const activeConnections = [
-    {
-      id: 1,
-      student: "Lisa Wang",
-      topic: "iOS Development Career",
-      startDate: "Nov 15, 2024",
-      sessionsCompleted: 3,
-      nextSession: "Dec 22, 2024",
-      avatar: "/student-lisa.png",
-      progress: 60,
-    },
-    {
-      id: 2,
-      student: "James Thompson",
-      topic: "System Design Preparation",
-      startDate: "Oct 28, 2024",
-      sessionsCompleted: 5,
-      nextSession: "Dec 20, 2024",
-      avatar: "/student-james.png",
-      progress: 80,
-    },
-  ];
-
-  const completedMentorships = [
-    {
-      id: 1,
-      student: "Maria Garcia",
-      topic: "Full Stack Development",
-      duration: "3 months",
-      outcome: "Landed job at Stripe",
-      rating: 5,
-      feedback:
-        "Sarah was an incredible mentor! Her guidance helped me land my dream job.",
-      avatar: "/student-maria.png",
-    },
-    {
-      id: 2,
-      student: "Kevin Chen",
-      topic: "Technical Interview Prep",
-      duration: "2 months",
-      outcome: "Joined Microsoft",
-      rating: 5,
-      feedback:
-        "Excellent mentorship. The mock interviews were extremely helpful.",
-      avatar: "/student-kevin.png",
-    },
-  ];
-
-  const handleRequestAction = (requestId, action) => {
-    // Handle accept/decline logic here
-    console.log(`${action} request ${requestId}`);
-    // In a real app, this would make an API call
-    if (action === "accept") {
-      // Move to active mentorships
-      console.log(`Moving request ${requestId} to active mentorships`);
-    } else if (action === "decline") {
+  const handleRequestAction = async (requestId, action) => {
+    try {
+      const token = getToken();
+      const res = await fetch(`${API_BASE}/api/connections/requests/${requestId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          status: action === "accept" ? "accepted" : "declined"
+        }),
+      });
+      
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.detail || "Failed to update request");
+      
       // Remove from pending requests
-      console.log(`Removing request ${requestId} from pending`);
+      setPendingRequests(prev => prev.filter(req => req.id !== requestId));
+      
+      // If accepted, add to active mentorships
+      if (action === "accept") {
+        const acceptedRequest = pendingRequests.find(req => req.id === requestId);
+        if (acceptedRequest) {
+          setActiveMentorships(prev => [...prev, acceptedRequest]);
+        }
+      }
+      
+    } catch (e) {
+      setError(e?.message || "Failed to update request");
     }
   };
+
+  const formatTimeAgo = (dateString) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInHours = Math.floor((now - date) / (1000 * 60 * 60));
+    
+    if (diffInHours < 1) return "Just now";
+    if (diffInHours < 24) return `${diffInHours} hour${diffInHours > 1 ? 's' : ''} ago`;
+    const diffInDays = Math.floor(diffInHours / 24);
+    return `${diffInDays} day${diffInDays > 1 ? 's' : ''} ago`;
+  };
+
 
   return (
     <DashboardLayout userRole="alumni" title="Mentorship">
@@ -137,7 +123,7 @@ export default function MentorshipPage() {
                 </div>
                 <div>
                   <div className="text-2xl font-semibold">
-                    {pendingRequests.length}
+                    {loading ? "..." : pendingRequests.length}
                   </div>
                   <div className="text-sm text-muted-foreground">
                     Pending Requests
@@ -155,7 +141,7 @@ export default function MentorshipPage() {
                 </div>
                 <div>
                   <div className="text-2xl font-semibold">
-                    {activeConnections.length}
+                    {loading ? "..." : activeMentorships.length}
                   </div>
                   <div className="text-sm text-muted-foreground">
                     Active Mentorships
@@ -207,20 +193,45 @@ export default function MentorshipPage() {
           </TabsList>
 
           <TabsContent value="pending" className="space-y-4">
-            {pendingRequests.map((request) => (
+            {loading && (
+              <Card>
+                <CardContent className="p-12 text-center">
+                  <div className="text-muted-foreground">Loading requests...</div>
+                </CardContent>
+              </Card>
+            )}
+            
+            {error && (
+              <Card>
+                <CardContent className="p-12 text-center">
+                  <div className="text-red-600">{error}</div>
+                </CardContent>
+              </Card>
+            )}
+            
+            {!loading && !error && pendingRequests.length === 0 && (
+              <Card>
+                <CardContent className="p-12 text-center">
+                  <div className="text-muted-foreground">
+                    <Clock className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                    <h3 className="text-lg font-medium mb-2">No pending requests</h3>
+                    <p>You don't have any pending connection requests at the moment.</p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+            
+            {!loading && !error && pendingRequests.map((request) => (
               <Card key={request.id}>
                 <CardContent className="p-6">
                   <div className="flex items-start gap-4">
                     <Avatar className="w-12 h-12">
-                      <AvatarImage
-                        src={request.avatar || "/placeholder.svg"}
-                        alt={request.student}
-                      />
                       <AvatarFallback>
-                        {request.student
+                        {request.student_name
                           .split(" ")
                           .map((n) => n[0])
-                          .join("")}
+                          .join("")
+                          .toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
 
@@ -228,47 +239,29 @@ export default function MentorshipPage() {
                       <div className="flex items-start justify-between mb-2">
                         <div>
                           <h3 className="font-semibold text-lg">
-                            {request.student}
+                            {request.student_name}
                           </h3>
                           <p className="text-sm text-muted-foreground">
-                            Class of {request.year}
+                            Student
                           </p>
                         </div>
                         <div className="flex items-center gap-1 text-xs text-muted-foreground">
                           <Clock className="w-3 h-3" />
-                          {request.timeAgo}
+                          {formatTimeAgo(request.created_at)}
                         </div>
                       </div>
 
                       <div className="mb-3">
-                        <h4 className="font-medium text-primary mb-1">
-                          {request.topic}
-                        </h4>
-                        <p className="text-sm text-muted-foreground text-pretty">
-                          {request.message}
-                        </p>
-                      </div>
-
-                      <div className="flex items-center gap-6 mb-4 text-sm">
-                        <div className="flex items-center gap-1">
-                          <Award className="w-4 h-4 text-muted-foreground" />
-                          <span>GPA: {request.gpa}</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <MessageSquare className="w-4 h-4 text-muted-foreground" />
-                          <span>{request.projects} projects</span>
-                        </div>
-                      </div>
-
-                      <div className="flex flex-wrap gap-1 mb-4">
-                        {request.skills.map((skill) => (
-                          <Badge
-                            key={skill}
-                            variant="secondary"
-                            className="text-xs">
-                            {skill}
-                          </Badge>
-                        ))}
+                        {request.topic && (
+                          <h4 className="font-medium text-primary mb-1">
+                            {request.topic}
+                          </h4>
+                        )}
+                        {request.message && (
+                          <p className="text-sm text-muted-foreground text-pretty">
+                            {request.message}
+                          </p>
+                        )}
                       </div>
 
                       <div className="flex gap-3">
@@ -301,20 +294,17 @@ export default function MentorshipPage() {
           </TabsContent>
 
           <TabsContent value="active" className="space-y-4">
-            {activeConnections.map((connection) => (
+            {activeMentorships.map((connection) => (
               <Card key={connection.id}>
                 <CardContent className="p-6">
                   <div className="flex items-start gap-4">
                     <Avatar className="w-12 h-12">
-                      <AvatarImage
-                        src={connection.avatar || "/placeholder.svg"}
-                        alt={connection.student}
-                      />
                       <AvatarFallback>
-                        {connection.student
+                        {(connection.student_name || "U")
                           .split(" ")
                           .map((n) => n[0])
-                          .join("")}
+                          .join("")
+                          .toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
 
@@ -322,42 +312,15 @@ export default function MentorshipPage() {
                       <div className="flex items-start justify-between mb-2">
                         <div>
                           <h3 className="font-semibold text-lg">
-                            {connection.student}
+                            {connection.student_name || "Student"}
                           </h3>
-                          <p className="text-sm text-primary font-medium">
-                            {connection.topic}
-                          </p>
+                          {connection.topic && (
+                            <p className="text-sm text-primary font-medium">
+                              {connection.topic}
+                            </p>
+                          )}
                         </div>
                         <Badge variant="secondary">Active</Badge>
-                      </div>
-
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4 text-sm">
-                        <div>
-                          <div className="text-muted-foreground">Started</div>
-                          <div className="font-medium">
-                            {connection.startDate}
-                          </div>
-                        </div>
-                        <div>
-                          <div className="text-muted-foreground">Sessions</div>
-                          <div className="font-medium">
-                            {connection.sessionsCompleted}
-                          </div>
-                        </div>
-                        <div>
-                          <div className="text-muted-foreground">
-                            Next Session
-                          </div>
-                          <div className="font-medium">
-                            {connection.nextSession}
-                          </div>
-                        </div>
-                        <div>
-                          <div className="text-muted-foreground">Progress</div>
-                          <div className="font-medium">
-                            {connection.progress}%
-                          </div>
-                        </div>
                       </div>
 
                       <div className="flex gap-3">

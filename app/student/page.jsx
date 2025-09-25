@@ -1,46 +1,55 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import { DashboardLayout } from "@/components/layout/dashboard-layout"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Users, MessageSquare, Calendar, Award, TrendingUp, Star, ArrowRight, Target } from "lucide-react"
+import { Users, MessageSquare, Calendar, Award, TrendingUp, Star, ArrowRight, Target, Loader2 } from "lucide-react"
 
 export default function StudentDashboard() {
+  const [isLoadingAlumni, setIsLoadingAlumni] = useState(true)
+  
   const recommendedAlumni = [
     {
       id: 1,
-      name: "Sarah Chen",
+      name: "Sai Sinare",
       company: "Google",
       role: "Software Engineer",
       batch: "2020",
       compatibility: 92,
       skills: ["React", "Python", "Machine Learning"],
-      avatar: "/professional-woman-diverse.png",
     },
     {
       id: 2,
-      name: "Michael Rodriguez",
+      name: "Sahil Dhawane",
       company: "Microsoft",
       role: "Product Manager",
       batch: "2019",
       compatibility: 88,
       skills: ["Product Strategy", "Data Analysis", "Leadership"],
-      avatar: "/professional-man.png",
     },
     {
       id: 3,
-      name: "Emily Johnson",
+      name: "Vedant Chandore",
       company: "Amazon",
       role: "UX Designer",
       batch: "2021",
       compatibility: 85,
       skills: ["UI/UX", "Figma", "User Research"],
-      avatar: "/professional-woman-designer.png",
     },
   ]
+
+  // Simulate loading for recommended alumni
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsLoadingAlumni(false)
+    }, 3500) // 3.5 second loading simulation
+    
+    return () => clearTimeout(timer)
+  }, [])
 
   const recentQuestions = [
     {
@@ -172,8 +181,18 @@ export default function StudentDashboard() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-white to-blue-50/30">
-            <CardHeader className="pb-4">
+          <Card className="relative border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-white to-blue-50/30">
+            {/* Gradient border effect for recommended alumni card */}
+            <div className="absolute inset-0 bg-gradient-to-r from-blue-500 via-purple-500 to-teal-500 rounded-xl blur-sm -z-10 opacity-30"></div>
+            <div className="absolute inset-0 bg-gradient-to-r from-blue-400 via-purple-400 to-teal-400 rounded-xl blur-xs -z-10 opacity-40"></div>
+            <div className="absolute inset-0 bg-gradient-to-r from-blue-300 via-purple-300 to-teal-300 rounded-xl -z-10 opacity-50"></div>
+            <div className="relative bg-white/95 backdrop-blur-sm rounded-xl py-6 px-0 border-2 border-transparent bg-clip-padding" 
+                 style={{
+                   backgroundImage: 'linear-gradient(white, white), linear-gradient(45deg, #3b82f6, #8b5cf6, #14b8a6)',
+                   backgroundOrigin: 'border-box',
+                   backgroundClip: 'padding-box, border-box'
+                 }}>
+            <CardHeader className="pb-4 px-6 pt-6">
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle className="flex items-center gap-3 text-xl">
@@ -190,57 +209,94 @@ export default function StudentDashboard() {
                 </Button>
               </div>
             </CardHeader>
-            <CardContent className="space-y-4">
-              {recommendedAlumni.map((alumni) => (
-                <div
-                  key={alumni.id}
-                  className="group p-4 rounded-xl border-0 bg-white/80 hover:bg-white hover:shadow-md transition-all duration-300"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <Avatar className="w-12 h-12 ring-2 ring-blue-100 group-hover:ring-blue-200 transition-all duration-300">
-                        <AvatarImage src={alumni.avatar || "/placeholder.svg"} alt={alumni.name} />
-                        <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white">
-                          {alumni.name
-                            .split(" ")
-                            .map((n) => n[0])
-                            .join("")}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <div className="font-semibold text-gray-900">{alumni.name}</div>
-                        <div className="text-sm text-gray-600">
-                          {alumni.role} at {alumni.company} • {alumni.batch}
+            <CardContent className="space-y-4 px-6">
+              {isLoadingAlumni ? (
+                // Loading state with skeleton animation
+                <div className="space-y-4">
+                  {[1, 2, 3].map((index) => (
+                    <div
+                      key={index}
+                      className="group p-4 rounded-xl border-0 bg-white/80 animate-pulse"
+                    >
+                      <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full animate-pulse flex items-center justify-center">
+                          <div className="w-6 h-6 bg-white/30 rounded-full"></div>
                         </div>
-                        <div className="flex gap-2 mt-2">
-                          {alumni.skills.slice(0, 2).map((skill) => (
-                            <Badge
-                              key={skill}
-                              variant="secondary"
-                              className="text-xs bg-blue-100 text-blue-700 hover:bg-blue-200"
-                            >
-                              {skill}
-                            </Badge>
-                          ))}
+                          <div className="space-y-2">
+                            <div className="h-4 bg-gray-200 rounded w-32 animate-pulse"></div>
+                            <div className="h-3 bg-gray-200 rounded w-48 animate-pulse"></div>
+                            <div className="flex gap-2 mt-2">
+                              <div className="h-5 bg-gray-200 rounded w-16 animate-pulse"></div>
+                              <div className="h-5 bg-gray-200 rounded w-20 animate-pulse"></div>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="text-right space-y-2">
+                          <div className="h-4 bg-gray-200 rounded w-12 animate-pulse"></div>
+                          <div className="h-8 bg-gray-200 rounded w-20 animate-pulse"></div>
                         </div>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <div className="flex items-center gap-1 text-sm font-semibold text-orange-600 mb-3">
-                        <Star className="w-4 h-4 fill-current" />
-                        {alumni.compatibility}%
-                      </div>
-                      <Button
-                        size="sm"
-                        className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white shadow-md"
-                      >
-                        Connect
-                      </Button>
-                    </div>
+                  ))}
+                  <div className="flex items-center justify-center py-4">
+                    <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
+                    <span className="ml-2 text-sm text-muted-foreground">Loading recommended alumni...</span>
                   </div>
                 </div>
-              ))}
+              ) : (
+                // Loaded state with actual alumni data
+                recommendedAlumni.map((alumni) => (
+                  <div
+                    key={alumni.id}
+                    className="group p-4 rounded-xl border-0 bg-white/80 hover:bg-white hover:shadow-md transition-all duration-300 animate-in slide-in-from-bottom-2 fade-in"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <Avatar className="w-12 h-12 ring-2 ring-blue-100 group-hover:ring-blue-200 transition-all duration-300">
+                          <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white font-semibold">
+                            {alumni.name
+                              .split(" ")
+                              .map((n) => n[0])
+                              .join("")}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <div className="font-semibold text-gray-900">{alumni.name}</div>
+                          <div className="text-sm text-gray-600">
+                            {alumni.role} at {alumni.company} • {alumni.batch}
+                          </div>
+                          <div className="flex gap-2 mt-2">
+                            {alumni.skills.slice(0, 2).map((skill) => (
+                              <Badge
+                                key={skill}
+                                variant="secondary"
+                                className="text-xs bg-blue-100 text-blue-700 hover:bg-blue-200"
+                              >
+                                {skill}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="flex items-center gap-1 text-sm font-semibold text-orange-600 mb-3">
+                          <Star className="w-4 h-4 fill-current" />
+                          {alumni.compatibility}%
+                        </div>
+                        <Button
+                          size="sm"
+                          className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white shadow-md"
+                        >
+                          Connect
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
             </CardContent>
+            </div>
           </Card>
 
           <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-white to-purple-50/30">

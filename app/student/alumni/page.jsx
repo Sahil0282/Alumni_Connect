@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -20,14 +21,27 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
   Search,
   Filter,
   Star,
   MapPin,
   Briefcase,
   Calendar,
+  Send,
+  CheckCircle,
+  Clock,
 } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { getToken } from "@/lib/auth";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
 
@@ -38,6 +52,12 @@ export default function FindAlumniPage() {
   const [alumni, setAlumni] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [connectionRequests, setConnectionRequests] = useState({});
+  const [selectedAlumni, setSelectedAlumni] = useState(null);
+  const [connectionMessage, setConnectionMessage] = useState("");
+  const [connectionTopic, setConnectionTopic] = useState("");
+  const [isConnectionDialogOpen, setIsConnectionDialogOpen] = useState(false);
+  const [sendingRequest, setSendingRequest] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -72,6 +92,68 @@ export default function FindAlumniPage() {
 
   const companies = Array.from(new Set(alumni.map(a => a.company).filter(Boolean)));
   const batches = Array.from(new Set(alumni.map(a => a.batch).filter(Boolean)));
+
+  const sendConnectionRequest = async (alumniId, message, topic) => {
+    try {
+      const token = getToken();
+      const res = await fetch(`${API_BASE}/api/connections/request`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          alumni_id: alumniId,
+          message: message,
+          topic: topic,
+        }),
+      });
+      
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.detail || "Failed to send connection request");
+      
+      // Update connection requests state
+      setConnectionRequests(prev => ({
+        ...prev,
+        [alumniId]: "pending"
+      }));
+      
+      return data;
+    } catch (e) {
+      throw new Error(e?.message || "Failed to send connection request");
+    }
+  };
+
+  const handleConnectClick = (alumni) => {
+    setSelectedAlumni(alumni);
+    setConnectionMessage("");
+    setConnectionTopic("");
+    setIsConnectionDialogOpen(true);
+  };
+
+  const handleSendRequest = async () => {
+    if (!selectedAlumni) return;
+    
+    setSendingRequest(true);
+    try {
+      await sendConnectionRequest(
+        selectedAlumni.id,
+        connectionMessage,
+        connectionTopic
+      );
+      setIsConnectionDialogOpen(false);
+      setConnectionMessage("");
+      setConnectionTopic("");
+    } catch (e) {
+      setError(e?.message || "Failed to send connection request");
+    } finally {
+      setSendingRequest(false);
+    }
+  };
+
+  const getConnectionStatus = (alumniId) => {
+    return connectionRequests[alumniId] || "none";
+  };
 
   const filteredAlumni = alumni.filter((person) => {
     const matchesSearch =
@@ -232,9 +314,37 @@ export default function FindAlumniPage() {
                       </div>
 
                       <div className="flex gap-2">
-                        <Button size="sm" className="flex-1">
-                          Connect
-                        </Button>
+                        {getConnectionStatus(person.id) === "none" && (
+                          <Button 
+                            size="sm" 
+                            className="flex-1"
+                            onClick={() => handleConnectClick(person)}
+                          >
+                            Connect
+                          </Button>
+                        )}
+                        {getConnectionStatus(person.id) === "pending" && (
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            className="flex-1"
+                            disabled
+                          >
+                            <Clock className="w-4 h-4 mr-1" />
+                            Pending
+                          </Button>
+                        )}
+                        {getConnectionStatus(person.id) === "accepted" && (
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            className="flex-1"
+                            disabled
+                          >
+                            <CheckCircle className="w-4 h-4 mr-1" />
+                            Connected
+                          </Button>
+                        )}
                         <Button
                           size="sm"
                           variant="outline"
@@ -261,6 +371,68 @@ export default function FindAlumniPage() {
             </CardContent>
           </Card>
         )}
+
+        {/* Connection Request Dialog */}
+        <Dialog open={isConnectionDialogOpen} onOpenChange={setIsConnectionDialogOpen}>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle>Send Connection Request</DialogTitle>
+              <DialogDescription>
+                Send a connection request to {selectedAlumni?.name} to start a conversation.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="space-y-2">
+                <label htmlFor="topic" className="text-sm font-medium">
+                  Topic (Optional)
+                </label>
+                <Input
+                  id="topic"
+                  placeholder="e.g., Career advice, Technical guidance"
+                  value={connectionTopic}
+                  onChange={(e) => setConnectionTopic(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <label htmlFor="message" className="text-sm font-medium">
+                  Message
+                </label>
+                <Textarea
+                  id="message"
+                  placeholder="Introduce yourself and explain why you'd like to connect..."
+                  value={connectionMessage}
+                  onChange={(e) => setConnectionMessage(e.target.value)}
+                  rows={4}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setIsConnectionDialogOpen(false)}
+                disabled={sendingRequest}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSendRequest}
+                disabled={sendingRequest || !connectionMessage.trim()}
+              >
+                {sendingRequest ? (
+                  <>
+                    <Clock className="w-4 h-4 mr-2 animate-spin" />
+                    Sending...
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-4 h-4 mr-2" />
+                    Send Request
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </DashboardLayout>
   );
