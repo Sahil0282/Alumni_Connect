@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -42,6 +42,8 @@ import {
   Plus,
 } from "lucide-react";
 import { AddAlumniModal } from "@/components/admin/add-alumni-modal";
+import { getToken } from "@/lib/auth";
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
 
 export default function AdminDirectoryPage() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -50,159 +52,65 @@ export default function AdminDirectoryPage() {
   const [filterSkills, setFilterSkills] = useState("all");
   const [sortBy, setSortBy] = useState("name");
   const [showAddAlumniModal, setShowAddAlumniModal] = useState(false);
+  const [alumni, setAlumni] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  const alumni = [
-    {
-      id: 1,
-      name: "Sarah Chen",
-      email: "sarah.chen@email.com",
-      phone: "+1 (555) 123-4567",
-      company: "Google",
-      position: "Senior Software Engineer",
-      batch: "2020",
-      graduationYear: "2020",
-      skills: ["React", "Node.js", "Python", "Machine Learning"],
-      location: "San Francisco, CA",
-      linkedin: "https://linkedin.com/in/sarahchen",
-      github: "https://github.com/sarahchen",
-      twitter: "https://twitter.com/sarahchen",
-      website: "https://sarahchen.dev",
-      status: "verified",
-      lastActive: "2 days ago",
-      achievements: ["Google Cloud Certified", "Open Source Contributor"],
-      bio: "Passionate about building scalable web applications and mentoring new developers.",
-      avatar: "/images/default-avatar.png",
-    },
-    {
-      id: 2,
-      name: "Michael Rodriguez",
-      email: "michael.rodriguez@email.com",
-      phone: "+1 (555) 234-5678",
-      company: "Microsoft",
-      position: "Principal Product Manager",
-      batch: "2018",
-      graduationYear: "2018",
-      skills: ["Product Management", "Strategy", "Leadership", "Data Analysis"],
-      location: "Seattle, WA",
-      linkedin: "https://linkedin.com/in/michaelrodriguez",
-      github: "https://github.com/michaelrodriguez",
-      twitter: "https://twitter.com/michaelrodriguez",
-      website: "https://michaelrodriguez.com",
-      status: "verified",
-      lastActive: "1 week ago",
-      achievements: ["Microsoft MVP", "Product Innovation Award"],
-      bio: "Experienced product leader with a track record of launching successful products.",
-      avatar: "/images/default-avatar.png",
-    },
-    {
-      id: 3,
-      name: "Emily Johnson",
-      email: "emily.johnson@email.com",
-      phone: "+1 (555) 345-6789",
-      company: "Apple",
-      position: "iOS Developer",
-      batch: "2019",
-      graduationYear: "2019",
-      skills: ["Swift", "iOS Development", "UI/UX", "Mobile Architecture"],
-      location: "Cupertino, CA",
-      linkedin: "https://linkedin.com/in/emilyjohnson",
-      github: "https://github.com/emilyjohnson",
-      twitter: "https://twitter.com/emilyjohnson",
-      website: "https://emilyjohnson.dev",
-      status: "verified",
-      lastActive: "3 days ago",
-      achievements: ["Apple Design Award", "iOS Expert"],
-      bio: "iOS developer passionate about creating beautiful and intuitive mobile experiences.",
-      avatar: "/images/default-avatar.png",
-    },
-    {
-      id: 4,
-      name: "David Kim",
-      email: "david.kim@email.com",
-      phone: "+1 (555) 456-7890",
-      company: "Netflix",
-      position: "Senior Data Scientist",
-      batch: "2021",
-      graduationYear: "2021",
-      skills: ["Machine Learning", "Python", "TensorFlow", "Data Analysis"],
-      location: "Los Gatos, CA",
-      linkedin: "https://linkedin.com/in/davidkim",
-      github: "https://github.com/davidkim",
-      twitter: "https://twitter.com/davidkim",
-      website: "https://davidkim.ai",
-      status: "verified",
-      lastActive: "1 day ago",
-      achievements: ["ML Research Paper", "Data Science Excellence"],
-      bio: "Data scientist focused on recommendation systems and machine learning algorithms.",
-      avatar: "/images/default-avatar.png",
-    },
-    {
-      id: 5,
-      name: "Lisa Wang",
-      email: "lisa.wang@email.com",
-      phone: "+1 (555) 567-8901",
-      company: "Tesla",
-      position: "Software Engineer",
-      batch: "2022",
-      graduationYear: "2022",
-      skills: ["C++", "Embedded Systems", "Automotive", "Python"],
-      location: "Palo Alto, CA",
-      linkedin: "https://linkedin.com/in/lisawang",
-      github: "https://github.com/lisawang",
-      twitter: "https://twitter.com/lisawang",
-      website: "https://lisawang.tech",
-      status: "verified",
-      lastActive: "4 days ago",
-      achievements: ["Tesla Innovation Award", "Open Source Contributor"],
-      bio: "Software engineer working on autonomous vehicle systems and embedded software.",
-      avatar: "/images/default-avatar.png",
-    },
-    {
-      id: 6,
-      name: "Alex Thompson",
-      email: "alex.thompson@email.com",
-      phone: "+1 (555) 678-9012",
-      company: "Amazon",
-      position: "Solutions Architect",
-      batch: "2017",
-      graduationYear: "2017",
-      skills: ["AWS", "Cloud Architecture", "DevOps", "Python"],
-      location: "Seattle, WA",
-      linkedin: "https://linkedin.com/in/alexthompson",
-      github: "https://github.com/alexthompson",
-      twitter: "https://twitter.com/alexthompson",
-      website: "https://alexthompson.cloud",
-      status: "verified",
-      lastActive: "1 week ago",
-      achievements: ["AWS Certified", "Cloud Architecture Expert"],
-      bio: "Cloud solutions architect helping companies scale their infrastructure on AWS.",
-      avatar: "/images/default-avatar.png",
-    },
-  ];
+  const fetchAlumni = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const token = getToken();
+      const res = await fetch(`${API_BASE}/api/admin/alumni/list`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.detail || "Failed to load alumni");
+      const list = Array.isArray(data?.alumni) ? data.alumni : [];
+      const mapped = list.map((a) => ({
+        id: a.id || a._id || a.email,
+        name: a.full_name || (a.email ? a.email.split("@")[0] : "Unknown"),
+        email: a.email,
+        phone: a.phone || "",
+        company: a.current_company || "",
+        position: a.current_position || "",
+        batch: a.graduation_year || "",
+        graduationYear: a.graduation_year || "",
+        skills: Array.isArray(a.skills) ? a.skills : [],
+        location: a.location || "",
+        linkedin: a.linkedin_profile || "",
+        github: a.github || "",
+        twitter: a.twitter || "",
+        website: a.website || "",
+        status: a.is_active ? "verified" : "inactive",
+        lastActive: a.updated_at || "",
+        achievements: Array.isArray(a.achievements) ? a.achievements : [],
+        avatar: "/images/default-avatar.png",
+      }));
+      setAlumni(mapped);
+    } catch (e) {
+      setError(e?.message || "Failed to load alumni");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-  const companies = [
-    "all",
-    "Google",
-    "Microsoft",
-    "Apple",
-    "Netflix",
-    "Tesla",
-    "Amazon",
-  ];
-  const batches = ["all", "2017", "2018", "2019", "2020", "2021", "2022"];
-  const allSkills = [
-    "all",
-    "React",
-    "Node.js",
-    "Python",
-    "Machine Learning",
-    "Product Management",
-    "Swift",
-    "iOS Development",
-    "C++",
-    "AWS",
-    "Cloud Architecture",
-  ];
+  useEffect(() => {
+    fetchAlumni();
+  }, [fetchAlumni]);
+
+  const companies = useMemo(() => {
+    const set = new Set(alumni.map((a) => a.company).filter(Boolean));
+    return ["all", ...Array.from(set).sort()];
+  }, [alumni]);
+  const batches = useMemo(() => {
+    const set = new Set(alumni.map((a) => String(a.batch || "")).filter(Boolean));
+    return ["all", ...Array.from(set).sort()];
+  }, [alumni]);
+  const allSkills = useMemo(() => {
+    const set = new Set(alumni.flatMap((a) => a.skills || []));
+    return ["all", ...Array.from(set).sort()];
+  }, [alumni]);
 
   const handleSearch = (query) => {
     setSearchQuery(query);
@@ -338,6 +246,12 @@ export default function AdminDirectoryPage() {
         </Card>
 
         {/* Alumni Grid */}
+        {error && (
+          <Card className="p-4 border-red-200 bg-red-50 text-red-700">{error}</Card>
+        )}
+        {loading && (
+          <Card className="p-4">Loading alumni...</Card>
+        )}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {sortedAlumni.map((alumnus) => (
             <Card

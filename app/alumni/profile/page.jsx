@@ -15,6 +15,24 @@ import { Plus, X, Award, Users, MessageSquare, Calendar } from "lucide-react"
 
 export default function AlumniProfilePage() {
   const [isEditing, setIsEditing] = useState(false)
+  // If opened from first-time login, enable edit mode and show a callout
+  const isFirst = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("first") === "1"
+  
+  if (isFirst && !isEditing) {
+    // enable editing by default on first open
+    // Note: This runs during render; set state in effect to avoid hydration mismatch
+    setTimeout(() => setIsEditing(true), 0)
+  }
+
+  const markCompleted = () => {
+    try {
+      const uRaw = typeof window !== "undefined" ? window.localStorage.getItem("auth_user") : null
+      if (uRaw) {
+        const u = JSON.parse(uRaw)
+        window.localStorage.setItem(`alumni_profile_completed_${u.id}`, "1")
+      }
+    } catch {}
+  }
   const [skills, setSkills] = useState(["React", "Python", "Machine Learning", "System Design", "Leadership"])
   const [expertise, setExpertise] = useState(["Software Engineering", "Technical Interviews", "Career Guidance"])
   const [newSkill, setNewSkill] = useState("")
@@ -157,12 +175,25 @@ export default function AlumniProfilePage() {
                     <CardTitle>Professional Information</CardTitle>
                     <CardDescription>Your current role and professional details</CardDescription>
                   </div>
-                  <Button variant={isEditing ? "default" : "outline"} onClick={() => setIsEditing(!isEditing)}>
+                  <Button
+                    variant={isEditing ? "default" : "outline"}
+                    onClick={() => {
+                      if (isEditing) {
+                        markCompleted()
+                      }
+                      setIsEditing(!isEditing)
+                    }}
+                  >
                     {isEditing ? "Save Changes" : "Edit Profile"}
                   </Button>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
+                {isFirst && (
+                  <div className="p-3 rounded-md bg-blue-50 text-blue-700 text-sm">
+                    Welcome! Please complete your profile so students can find and connect with you.
+                  </div>
+                )}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="firstName">First Name</Label>

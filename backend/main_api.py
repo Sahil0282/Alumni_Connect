@@ -4,12 +4,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.admin.email_routes import router as admin_email_router
 from app.api.admin.alumni_routes import router as admin_alumni_router
 from app.api.student.chatbot_routes import router as student_chatbot_router
+from app.api.auth.auth_routes import router as auth_router
 
 # Create FastAPI app
 app = FastAPI(
     title="VIT Portal API",
-    description="API for VIT Student, Alumni and Admin Portal",
-    version="1.0.0"
+    description="API for VIT Student, Alumni and Admin Portal with Authentication",
+    version="2.0.0"
 )
 
 # Add CORS middleware
@@ -22,6 +23,7 @@ app.add_middleware(
 )
 
 # Include routers
+app.include_router(auth_router)
 app.include_router(admin_email_router)
 app.include_router(admin_alumni_router)
 app.include_router(student_chatbot_router)
@@ -31,8 +33,19 @@ async def root():
     """Root endpoint"""
     return {
         "message": "VIT Portal API",
-        "version": "1.0.0",
-        "modules": ["student", "alumni", "admin"],
+        "version": "2.0.0",
+        "modules": ["authentication", "student", "alumni", "admin"],
+        "auth_endpoints": {
+            "register_admin": "/api/auth/register/admin",
+            "register_student": "/api/auth/register/student",
+            "login": "/api/auth/login",
+            "profile": "/api/auth/profile",
+            "update_profile": "/api/auth/profile",
+            "update_student_profile": "/api/auth/profile/student",
+            "change_password": "/api/auth/change-password",
+            "logout": "/api/auth/logout",
+            "verify_token": "/api/auth/verify-token"
+        },
         "admin_endpoints": {
             "send_single_email": "/api/admin/send-email",
             "send_bulk_emails": "/api/admin/send-bulk-emails", 
@@ -48,13 +61,21 @@ async def root():
             "chatbot_categories": "/api/student/chatbot/categories",
             "chatbot_sessions": "/api/student/chatbot/sessions/{session_id}"
         },
-        "docs": "/docs"
+        "docs": "/docs",
+        "features": {
+            "authentication": "JWT-based authentication for all user types",
+            "user_management": "Registration and profile management",
+            "role_based_access": "Admin, Student, and Alumni role separation",
+            "alumni_management": "CSV import and email automation",
+            "ai_chatbot": "Placement preparation AI assistant",
+            "email_service": "Automated email notifications"
+        }
     }
 
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
-    return {"status": "healthy", "service": "VIT Portal API"}
+    return {"status": "healthy", "service": "VIT Portal API", "version": "2.0.0"}
 
 if __name__ == "__main__":
     import uvicorn

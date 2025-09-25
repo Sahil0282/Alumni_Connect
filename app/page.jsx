@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useCallback } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -15,9 +15,24 @@ import {
   MessageCircle,
   Calendar,
 } from "lucide-react"
+import { getUser } from "@/lib/auth"
 
 export default function HomePage() {
   const [selectedRole, setSelectedRole] = useState(null)
+
+  const handlePortalClick = useCallback((role) => {
+    const user = getUser()
+    if (!user) {
+      window.location.href = `/login?role=${role}`
+      return
+    }
+    if (user.user_type !== role) {
+      // Send user to their dashboard
+      window.location.href = `/${user.user_type}`
+      return
+    }
+    window.location.href = `/${role}`
+  }, [])
 
   if (selectedRole) {
     // Redirect to appropriate dashboard
@@ -179,7 +194,7 @@ export default function HomePage() {
             {/* Student Portal */}
             <Card
               className="relative overflow-hidden hover:shadow-2xl transition-all duration-500 cursor-pointer group border-0 bg-gradient-to-br from-blue-500/5 to-indigo-500/5 hover:-translate-y-2"
-              onClick={() => setSelectedRole("student")}
+              onClick={() => handlePortalClick("student")}
             >
               <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-indigo-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
               <CardHeader className="relative text-center pb-6">
@@ -228,7 +243,7 @@ export default function HomePage() {
             {/* Alumni Portal */}
             <Card
               className="relative overflow-hidden hover:shadow-2xl transition-all duration-500 cursor-pointer group border-0 bg-gradient-to-br from-purple-500/5 to-pink-500/5 hover:-translate-y-2"
-              onClick={() => setSelectedRole("alumni")}
+              onClick={() => handlePortalClick("alumni")}
             >
               <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 to-pink-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
               <CardHeader className="relative text-center pb-6">
@@ -277,7 +292,7 @@ export default function HomePage() {
             {/* Admin Portal */}
             <Card
               className="relative overflow-hidden hover:shadow-2xl transition-all duration-500 cursor-pointer group border-0 bg-gradient-to-br from-teal-500/5 to-cyan-500/5 hover:-translate-y-2"
-              onClick={() => setSelectedRole("admin")}
+              onClick={() => handlePortalClick("admin")}
             >
               <div className="absolute inset-0 bg-gradient-to-br from-teal-500/10 to-cyan-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
               <CardHeader className="relative text-center pb-6">

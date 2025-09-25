@@ -9,6 +9,19 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Users, MessageSquare, Calendar, Award, TrendingUp, ArrowRight, Clock, CheckCircle, Gift } from "lucide-react"
 
 export default function AlumniDashboard() {
+  // If first-time login flag present, nudge to profile
+  if (typeof window !== "undefined") {
+    const uRaw = window.localStorage.getItem("auth_user")
+    if (uRaw) {
+      try {
+        const u = JSON.parse(uRaw)
+        const completed = window.localStorage.getItem(`alumni_profile_completed_${u.id}`)
+        if (!completed) {
+          // lightweight banner could be added; for now, ensure route-guard in layout already enforces auth
+        }
+      } catch {}
+    }
+  }
   const mentorshipRequests = [
     {
       id: 1,
