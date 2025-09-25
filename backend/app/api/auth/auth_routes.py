@@ -10,6 +10,7 @@ from app.models.auth_models import (
     AuthResponse,
     UpdateProfileRequest,
     UpdateStudentProfileRequest,
+    UpdateAlumniProfileRequest,
     ChangePasswordRequest
 )
 from app.core.auth_database import auth_db
@@ -283,6 +284,60 @@ async def update_student_profile(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to update student profile: {str(e)}"
+        )
+
+@router.put("/profile/alumni", response_model=AuthResponse)
+async def update_alumni_profile(
+    request: UpdateAlumniProfileRequest,
+    current_user: Dict[str, Any] = Depends(get_current_alumni)
+):
+    """Update alumni-specific profile data"""
+    try:
+        update_data = {}
+        if request.full_name is not None:
+            update_data["full_name"] = request.full_name
+        if request.phone is not None:
+            update_data["phone"] = request.phone
+        if request.department is not None:
+            update_data["department"] = request.department
+        if request.graduation_year is not None:
+            update_data["graduation_year"] = request.graduation_year
+        if request.current_company is not None:
+            update_data["current_company"] = request.current_company
+        if request.current_position is not None:
+            update_data["current_position"] = request.current_position
+        if request.linkedin_profile is not None:
+            update_data["linkedin_profile"] = request.linkedin_profile
+
+        if not update_data:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No data provided for update"
+            )
+
+        success = auth_db.update_user_profile(
+            user_id=current_user["user_id"],
+            user_type="alumni",
+            update_data=update_data
+        )
+
+        if not success:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Failed to update alumni profile"
+            )
+
+        return AuthResponse(
+            success=True,
+            message="Alumni profile updated successfully"
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to update alumni profile: {str(e)}"
         )
 
 @router.put("/change-password", response_model=AuthResponse)

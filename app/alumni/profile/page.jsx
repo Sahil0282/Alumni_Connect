@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { DashboardLayout } from "@/components/layout/dashboard-layout"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -12,17 +12,22 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { Plus, X, Award, Users, MessageSquare, Calendar } from "lucide-react"
+import { getToken } from "@/lib/auth"
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000"
 
 export default function AlumniProfilePage() {
   const [isEditing, setIsEditing] = useState(false)
-  // If opened from first-time login, enable edit mode and show a callout
-  const isFirst = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("first") === "1"
-  
-  if (isFirst && !isEditing) {
-    // enable editing by default on first open
-    // Note: This runs during render; set state in effect to avoid hydration mismatch
-    setTimeout(() => setIsEditing(true), 0)
-  }
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState("")
+  const [profile, setProfile] = useState(null)
+  // Track first-time flag after hydration to avoid SSR/CSR mismatch
+  const [showFirstCallout, setShowFirstCallout] = useState(false)
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    const isFirst = new URLSearchParams(window.location.search).get("first") === "1"
+    setShowFirstCallout(isFirst)
+    if (isFirst) setIsEditing(true)
+  }, [])
 
   const markCompleted = () => {
     try {
@@ -33,11 +38,91 @@ export default function AlumniProfilePage() {
       }
     } catch {}
   }
-  const [skills, setSkills] = useState(["React", "Python", "Machine Learning", "System Design", "Leadership"])
-  const [expertise, setExpertise] = useState(["Software Engineering", "Technical Interviews", "Career Guidance"])
+
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true)
+      setError("")
+      try {
+        const token = getToken()
+        const res = await fetch(`${API_BASE}/api/auth/profile`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data?.detail || "Failed to load profile")
+        const u = data?.data?.user || {}
+        setProfile(u)
+        const nm = u.full_name || (u.email ? u.email.split("@")[0] : "")
+        setFullName(nm)
+        const parts = String(nm).trim().split(" ")
+        setFirstName(parts[0] || "")
+        setLastName(parts.slice(1).join(" "))
+        setEmail(u.email || "")
+        setCompany(u.current_company || "")
+        setRoleTitle(u.current_position || "")
+        setLocation(u.location || "")
+        setLinkedin(u.linkedin_profile || "")
+        setBio(u.bio || "")
+        setCgpa(u.cgpa || "")
+        setSkills(Array.isArray(u.skills) ? u.skills : [])
+        setExpertise(Array.isArray(u.expertise) ? u.expertise : [])
+        setMentorshipAvailable(Boolean(u.mentorship_available ?? true))
+      } catch (e) {
+        setError(e?.message || "Failed to load profile")
+      } finally {
+        setLoading(false)
+      }
+    }
+    load()
+  }, [])
+
+  const saveProfile = async () => {
+    try {
+      const token = getToken()
+      const res = await fetch(`${API_BASE}/api/auth/profile/alumni`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          full_name: (firstName + " " + lastName).trim() || fullName,
+          current_company: company,
+          current_position: roleTitle,
+          linkedin_profile: linkedin,
+          cgpa: cgpa,
+          department: profile?.department,
+          graduation_year: profile?.graduation_year,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data?.detail || data?.message || "Failed to update")
+    } catch (e) {
+      setError(e?.message || "Failed to save profile")
+      return false
+    }
+    return true
+  }
+  const [skills, setSkills] = useState([])
+  const [expertise, setExpertise] = useState([])
   const [newSkill, setNewSkill] = useState("")
   const [newExpertise, setNewExpertise] = useState("")
   const [mentorshipAvailable, setMentorshipAvailable] = useState(true)
+
+  const [fullName, setFullName] = useState("")
+  const [email, setEmail] = useState("")
+  const [company, setCompany] = useState("")
+  const [roleTitle, setRoleTitle] = useState("")
+  const [location, setLocation] = useState("")
+  const [linkedin, setLinkedin] = useState("")
+  const [bio, setBio] = useState("")
+  const [firstName, setFirstName] = useState("")
+  const [lastName, setLastName] = useState("")
+  const [cgpa, setCgpa] = useState("")
+
+  useEffect(() => {
+    setFullName(firstName + " " + lastName)
+  }, [firstName, lastName])
 
   const addSkill = () => {
     if (newSkill.trim() && !skills.includes(newSkill.trim()) && skills.length < 10) {
@@ -70,23 +155,19 @@ export default function AlumniProfilePage() {
             <Card>
               <CardContent className="p-6 text-center">
                 <Avatar className="w-24 h-24 mx-auto mb-4">
-                  <AvatarImage src="/professional-woman-diverse.png" alt="Profile" />
-                  <AvatarFallback className="text-2xl">SC</AvatarFallback>
+                  <AvatarFallback className="text-2xl">
+                    {fullName ? fullName.split(' ').map(n => n[0]).join('').toUpperCase() : 'A'}
+                  </AvatarFallback>
                 </Avatar>
-                <h3 className="font-semibold text-lg">Sarah Chen</h3>
-                <p className="text-sm text-muted-foreground mb-1">Senior Software Engineer</p>
-                <p className="text-sm text-muted-foreground mb-3">Google • Class of 2020</p>
+                <h3 className="font-semibold text-lg">{fullName || "Alumni"}</h3>
+                <p className="text-sm text-muted-foreground mb-1">{roleTitle || ""}</p>
+                <p className="text-sm text-muted-foreground mb-3">{company || ""}{profile?.graduation_year ? ` • Class of ${profile.graduation_year}` : ""}</p>
 
                 <div className="flex items-center justify-center gap-2 mb-4">
                   <Badge variant="secondary">Gold Mentor</Badge>
                   <Badge variant="outline">Verified</Badge>
                 </div>
 
-                {isEditing && (
-                  <Button variant="outline" size="sm" className="bg-transparent">
-                    Change Photo
-                  </Button>
-                )}
               </CardContent>
             </Card>
 
@@ -179,9 +260,11 @@ export default function AlumniProfilePage() {
                     variant={isEditing ? "default" : "outline"}
                     onClick={() => {
                       if (isEditing) {
-                        markCompleted()
+                        saveProfile().then((ok) => {
+                          if (ok) markCompleted()
+                        })
                       }
-                      setIsEditing(!isEditing)
+                      setIsEditing((v) => !v)
                     }}
                   >
                     {isEditing ? "Save Changes" : "Edit Profile"}
@@ -189,7 +272,7 @@ export default function AlumniProfilePage() {
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
-                {isFirst && (
+                {showFirstCallout && (
                   <div className="p-3 rounded-md bg-blue-50 text-blue-700 text-sm">
                     Welcome! Please complete your profile so students can find and connect with you.
                   </div>
@@ -197,57 +280,31 @@ export default function AlumniProfilePage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="firstName">First Name</Label>
-                    <Input
-                      id="firstName"
-                      defaultValue="Sarah"
-                      disabled={!isEditing}
-                      className={!isEditing ? "bg-muted" : ""}
-                    />
+                    <Input id="firstName" value={firstName} onChange={(e) => setFirstName(e.target.value)} disabled={!isEditing} className={!isEditing ? "bg-muted" : ""} />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="lastName">Last Name</Label>
-                    <Input
-                      id="lastName"
-                      defaultValue="Chen"
-                      disabled={!isEditing}
-                      className={!isEditing ? "bg-muted" : ""}
-                    />
+                    <Input id="lastName" value={lastName} onChange={(e) => setLastName(e.target.value)} disabled={!isEditing} className={!isEditing ? "bg-muted" : ""} />
                   </div>
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    defaultValue="sarah.chen@google.com"
-                    disabled={!isEditing}
-                    className={!isEditing ? "bg-muted" : ""}
-                  />
+                  <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} disabled={!isEditing} className={!isEditing ? "bg-muted" : ""} />
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="company">Company</Label>
-                    <Input
-                      id="company"
-                      defaultValue="Google"
-                      disabled={!isEditing}
-                      className={!isEditing ? "bg-muted" : ""}
-                    />
+                    <Input id="company" value={company} onChange={(e) => setCompany(e.target.value)} disabled={!isEditing} className={!isEditing ? "bg-muted" : ""} />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="role">Role</Label>
-                    <Input
-                      id="role"
-                      defaultValue="Senior Software Engineer"
-                      disabled={!isEditing}
-                      className={!isEditing ? "bg-muted" : ""}
-                    />
+                    <Input id="role" value={roleTitle} onChange={(e) => setRoleTitle(e.target.value)} disabled={!isEditing} className={!isEditing ? "bg-muted" : ""} />
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="experience">Years of Experience</Label>
                     <Select disabled={!isEditing}>
@@ -264,36 +321,34 @@ export default function AlumniProfilePage() {
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="location">Location</Label>
-                    <Input
-                      id="location"
-                      defaultValue="Mountain View, CA"
-                      disabled={!isEditing}
-                      className={!isEditing ? "bg-muted" : ""}
+                    <Label htmlFor="cgpa">CGPA</Label>
+                    <Input 
+                      id="cgpa" 
+                      type="number" 
+                      step="0.01" 
+                      min="0" 
+                      max="10" 
+                      placeholder="8.5" 
+                      value={cgpa} 
+                      onChange={(e) => setCgpa(e.target.value)} 
+                      disabled={!isEditing} 
+                      className={!isEditing ? "bg-muted" : ""} 
                     />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="location">Location</Label>
+                    <Input id="location" value={location} onChange={(e) => setLocation(e.target.value)} disabled={!isEditing} className={!isEditing ? "bg-muted" : ""} />
                   </div>
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="linkedin">LinkedIn Profile</Label>
-                  <Input
-                    id="linkedin"
-                    defaultValue="https://linkedin.com/in/sarahchen"
-                    disabled={!isEditing}
-                    className={!isEditing ? "bg-muted" : ""}
-                  />
+                  <Input id="linkedin" value={linkedin} onChange={(e) => setLinkedin(e.target.value)} disabled={!isEditing} className={!isEditing ? "bg-muted" : ""} />
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="bio">Professional Bio</Label>
-                  <Textarea
-                    id="bio"
-                    placeholder="Tell students about your journey, expertise, and what you can help with..."
-                    defaultValue="Senior Software Engineer at Google with 4+ years of experience in building scalable web applications. Passionate about machine learning, system design, and mentoring the next generation of engineers. I love helping students navigate their career paths and prepare for technical interviews."
-                    disabled={!isEditing}
-                    className={!isEditing ? "bg-muted" : ""}
-                    rows={4}
-                  />
+                  <Textarea id="bio" placeholder="Tell students about your journey, expertise, and what you can help with..." value={bio} onChange={(e) => setBio(e.target.value)} disabled={!isEditing} className={!isEditing ? "bg-muted" : ""} rows={4} />
                 </div>
               </CardContent>
             </Card>
